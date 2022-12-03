@@ -7,13 +7,42 @@ defmodule PlausibleWeb.AuthPlug do
   end
 
   def call(conn, _opts) do
-    with id when is_integer(id) <- get_session(conn, :current_user_id),
+    with id when is_integer(id) <- get_user_id_by_session_or_header(conn),
          %Plausible.Auth.User{} = user <- find_user(id) do
       Plausible.OpenTelemetry.add_user_attributes(user)
       Sentry.Context.set_user_context(%{id: user.id, name: user.name, email: user.email})
       assign(conn, :current_user, user)
     else
       nil -> conn
+    end
+  end
+
+  defp get_user_id_by_session_or_header(conn) do
+    cond do
+      (user_email = List.first(get_req_header(conn, "x-auth-useremail"))) != nil ->
+        user_id_by_email(user_email)
+
+      is_integer(user_id = get_session(conn, :current_user_id)) ->
+        user_id
+
+      true ->
+        nil
+    end
+  end
+
+  defp user_id_by_email(email) do
+    user_query =
+      from(user in Plausible.Auth.User,
+        where: user.email == ^email,
+        limit: 1
+      )
+
+    case Repo.one(user_query) do
+      nil ->
+        nil
+
+      user ->
+        user.id
     end
   end
 

@@ -19,7 +19,17 @@ defmodule PlausibleWeb.AuthorizeSiteAccess do
     if !site do
       PlausibleWeb.ControllerHelpers.render_error(conn, 404) |> halt
     else
-      user_id = get_session(conn, :current_user_id)
+      user = conn.assigns[:current_user]
+
+      user_id =
+        cond do
+          is_nil(user) ->
+            nil
+
+          is_map(user) ->
+            user.id
+        end
+
       membership_role = user_id && Plausible.Sites.role(user_id, site)
 
       role =
