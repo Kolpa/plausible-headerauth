@@ -1,8 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-
 ## Unreleased
+
+## v1.5.0 - 2022-12-02 
 
 ### Added
 - Set a different interval on the top graph plausible/analytics#1574 (thanks to @Vigasaurus for this feature)
@@ -73,6 +74,9 @@ All notable changes to this project will be documented in this file.
 - New and improved Session tracking module for higher throughput and lower latency. [PR#1934](https://github.com/plausible/analytics#1934)
 - Do not display ZZ country code in countries report [PR#1934](https://github.com/plausible/analytics#2223)
 - Add fallback icon for when DDG favicon cannot be fetched [PR#2279](https://github.com/plausible/analytics#2279)
+
+### Security
+- Add Content-Security-Policy header to favicon path
 
 ## v1.4.1 - 2021-11-29
 
