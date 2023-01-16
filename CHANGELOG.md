@@ -3,7 +3,28 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-## v1.5.0 - 2022-12-02 
+### Added
+- 'Last updated X seconds ago' info to 'current visitors' tooltips
+
+### Fixed
+- Cascade delete sent_renewal_notifications table when user is deleted plausible/analytics#2549
+- Show appropriate top-stat metric labels on the realtime dashboard when filtering by a goal
+- Fix breakdown API pagination when using event metrics plausible/analytics#2562
+- Automatically update all visible dashboard reports in the realtime view
+- Connect via TLS when using HTTPS scheme in ClickHouse URL plausible/analytics#2570
+
+### Changed
+- Reject events with long URIs and data URIs plausible/analytics#2536
+- Always show direct traffic in sources reports plausible/analytics#2531
+- Stop recording XX and T1 country codes plausible/analytics#2556
+
+## v1.5.1 - 2022-12-06
+
+### Fixed
+- Return empty list when breaking down by event:page without events plausible/analytics#2530
+- Fallback to empty build metadata when failing to parse $BUILD_METADATA plausible/analytics#2503
+
+## v1.5.0 - 2022-12-02
 
 ### Added
 - Set a different interval on the top graph plausible/analytics#1574 (thanks to @Vigasaurus for this feature)

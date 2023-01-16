@@ -97,11 +97,16 @@ defmodule PlausibleWeb.Api.ExternalControllerTest do
         screen_width: 1440
       }
 
+      t1 = System.convert_time_unit(System.monotonic_time(), :native, :millisecond)
+
       conn
       |> put_req_header("user-agent", @user_agent)
       |> post("/api/event", params)
 
-      :timer.sleep(1500)
+      t2 = System.convert_time_unit(System.monotonic_time(), :native, :millisecond)
+
+      # timestamps are in second precision, so we need to wait for it to flip
+      Process.sleep(1000 - (t2 - t1))
 
       conn
       |> put_req_header("user-agent", @user_agent)
@@ -680,6 +685,47 @@ defmodule PlausibleWeb.Api.ExternalControllerTest do
       pageview = get_event(domain)
 
       assert pageview.country_code == <<0, 0>>
+      assert pageview.subdivision1_code == ""
+      assert pageview.subdivision2_code == ""
+      assert pageview.city_geoname_id == 0
+    end
+
+    test "ignores disputed territory code XX", %{conn: conn, domain: domain} do
+      params = %{
+        name: "pageview",
+        domain: domain,
+        url: "http://gigride.live/"
+      }
+
+      conn
+      |> put_req_header("x-forwarded-for", "0.0.0.1")
+      |> post("/api/event", params)
+
+      pageview = get_event(domain)
+
+      assert pageview.country_code == <<0, 0>>
+      assert pageview.subdivision1_code == ""
+      assert pageview.subdivision2_code == ""
+      assert pageview.city_geoname_id == 0
+    end
+
+    test "ignores TOR exit node country code T1", %{conn: conn, domain: domain} do
+      params = %{
+        name: "pageview",
+        domain: domain,
+        url: "http://gigride.live/"
+      }
+
+      conn
+      |> put_req_header("x-forwarded-for", "0.0.0.2")
+      |> post("/api/event", params)
+
+      pageview = get_event(domain)
+
+      assert pageview.country_code == <<0, 0>>
+      assert pageview.subdivision1_code == ""
+      assert pageview.subdivision2_code == ""
+      assert pageview.city_geoname_id == 0
     end
 
     test "scrubs port from x-forwarded-for", %{conn: conn, domain: domain} do

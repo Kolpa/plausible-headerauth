@@ -5,6 +5,8 @@ defmodule PlausibleWeb.Api.StatsController do
   alias Plausible.Stats
   alias Plausible.Stats.{Query, Filters}
 
+  require Logger
+
   @doc """
   Returns a time-series based on given parameters.
 
@@ -230,6 +232,35 @@ defmodule PlausibleWeb.Api.StatsController do
     end
   end
 
+  defp fetch_top_stats(
+         site,
+         %Query{period: "realtime", filters: %{"event:goal" => _goal}} = query
+       ) do
+    query_30m = %Query{query | period: "30m"}
+
+    %{
+      visitors: %{value: unique_conversions},
+      events: %{value: total_conversions}
+    } = Stats.aggregate(site, query_30m, [:visitors, :events])
+
+    stats = [
+      %{
+        name: "Current visitors",
+        value: Stats.current_visitors(site)
+      },
+      %{
+        name: "Unique conversions (last 30 min)",
+        value: unique_conversions
+      },
+      %{
+        name: "Total conversions (last 30 min)",
+        value: total_conversions
+      }
+    ]
+
+    {stats, 100}
+  end
+
   defp fetch_top_stats(site, %Query{period: "realtime"} = query) do
     query_30m = %Query{query | period: "30m"}
 
@@ -371,7 +402,6 @@ defmodule PlausibleWeb.Api.StatsController do
     query =
       Query.from(site, params)
       |> Filters.add_prefix()
-      |> maybe_hide_noref("visit:source", params)
 
     pagination = parse_pagination(params)
 
@@ -402,7 +432,6 @@ defmodule PlausibleWeb.Api.StatsController do
     query =
       Query.from(site, params)
       |> Filters.add_prefix()
-      |> maybe_hide_noref("visit:utm_medium", params)
 
     pagination = parse_pagination(params)
 
@@ -432,7 +461,6 @@ defmodule PlausibleWeb.Api.StatsController do
     query =
       Query.from(site, params)
       |> Filters.add_prefix()
-      |> maybe_hide_noref("visit:utm_campaign", params)
 
     pagination = parse_pagination(params)
 
@@ -462,7 +490,6 @@ defmodule PlausibleWeb.Api.StatsController do
     query =
       Query.from(site, params)
       |> Filters.add_prefix()
-      |> maybe_hide_noref("visit:utm_content", params)
 
     pagination = parse_pagination(params)
     metrics = [:visitors, :bounce_rate, :visit_duration]
@@ -491,7 +518,6 @@ defmodule PlausibleWeb.Api.StatsController do
     query =
       Query.from(site, params)
       |> Filters.add_prefix()
-      |> maybe_hide_noref("visit:utm_term", params)
 
     pagination = parse_pagination(params)
     metrics = [:visitors, :bounce_rate, :visit_duration]
@@ -520,7 +546,6 @@ defmodule PlausibleWeb.Api.StatsController do
     query =
       Query.from(site, params)
       |> Filters.add_prefix()
-      |> maybe_hide_noref("visit:utm_source", params)
 
     pagination = parse_pagination(params)
 
@@ -782,7 +807,7 @@ defmodule PlausibleWeb.Api.StatsController do
           country_entry = get_country(region_entry.country_code)
           Map.merge(region, %{name: region_entry.name, country_flag: country_entry.flag})
         else
-          Sentry.capture_message("Could not find region info", extra: %{code: region[:code]})
+          Logger.warning("Could not find region info - code: #{inspect(region[:code])}")
           Map.merge(region, %{name: region[:code]})
         end
       end)
@@ -819,7 +844,7 @@ defmodule PlausibleWeb.Api.StatsController do
             country_flag: country_info.flag
           })
         else
-          Sentry.capture_message("Could not find city info", extra: %{code: city[:code]})
+          Logger.warning("Could not find city info - code: #{inspect(city[:code])}")
 
           Map.merge(city, %{name: "N/A"})
         end
@@ -1108,17 +1133,6 @@ defmodule PlausibleWeb.Api.StatsController do
     end
   end
 
-  defp maybe_hide_noref(query, property, params) do
-    cond do
-      is_nil(query.filters[property]) and params["show_noref"] != "true" ->
-        new_filters = Map.put(query.filters, property, {:is_not, "Direct / None"})
-        %Query{query | filters: new_filters}
-
-      true ->
-        query
-    end
-  end
-
   defp add_cr(list, list_without_goals, key_name) do
     Enum.map(list, fn item ->
       without_goal = Enum.find(list_without_goals, fn s -> s[key_name] === item[key_name] end)
@@ -1161,7 +1175,7 @@ defmodule PlausibleWeb.Api.StatsController do
   defp get_country(code) do
     case Location.get_country(code) do
       nil ->
-        Sentry.capture_message("Could not find country info", extra: %{code: code})
+        Logger.warning("Could not find country info - code: #{inspect(code)}")
 
         %Location.Country{
           alpha_2: code,
